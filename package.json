@@ -1,0 +1,28 @@
+{
+  "name": "git-commit-gpt",
+  "version": "1.0.0",
+  "description": "AI-powered git commit message suggester using Ollama + tinyllama",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "bin": {
+    "git-commit-gpt": "./index.js"
+  },
+  "keywords": [
+    "git",
+    "commit",
+    "gpt",
+    "ollama",
+    "ai",
+    "tinyllama"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "diffparser": "^2.0.1",
+    "inquirer": "^9.0.0",
+    "node-fetch": "^3.3.2"
+  }
+}

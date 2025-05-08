@@ -1,0 +1,24 @@
+# Node modules and logs
+node_modules/
+*.log
+
+# Environment files
+.env
+.env.*
+
+# VS Code
+.vscode/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Builds
+dist/
+build/
+
+# Git itself
+.git
