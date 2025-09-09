@@ -1,0 +1,22 @@
+services:
+  ollama:
+    image: ollama/ollama:0.1.48
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
+  commit-gpt:
+    build: .
+    volumes:
+      - .:/repo
+    working_dir: /repo
+    depends_on:
+      - ollama
+    stdin_open: true
+    tty: true
+    environment:
+      - OLLAMA_URL=http://ollama:11434/api/generate
+
+volumes:
+  ollama-data:
