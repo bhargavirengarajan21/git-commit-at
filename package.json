@@ -1,14 +1,22 @@
 {
-  "name": "git-commit-gpt",
+  "name": "git-commit-at",
   "version": "1.0.0",
   "description": "AI-powered git commit message suggester using Ollama + tinyllama",
   "main": "index.js",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bhargavirengarajan21/git-commit-at"
+  },
+  "homepage": "https://github.com/bhargavirengarajan21/git-commit-at#readme",
+  "bugs": {
+    "url": "https://github.com/bhargavirengarajan21/git-commit-at/issues"
+  },
   "scripts": {
     "start": "node index.js"
   },
   "bin": {
-    "git-commit-gpt": "./index.js"
+    "git-commit-at": "./index.js"
   },
   "keywords": [
     "git",
