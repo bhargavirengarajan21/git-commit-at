@@ -5,6 +5,9 @@ import inquirer from 'inquirer';
 import { execSync } from 'child_process';
 import { spec } from './conventional-comit.js';
 import { diffParser } from './diff-parser.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434/api/generate";
 
@@ -12,8 +15,11 @@ const ensureOllama = () =>{
   console.log("🔍 Checking Ollama status...");
   console.log("🚀 Starting Ollama via docker compose...");
   try {
-    execSync("docker compose up -d ollama", { stdio: "inherit" });
+    const composeFile = path.resolve(__dirname, 'docker-compose.yml');
+    console.log(`Using compose file at: ${composeFile}`);
+    execSync(`docker compose -f ${composeFile} up -d ollama`, { stdio: "inherit" });
   } catch (err) {
+    console.log(err);
     console.error("❌ Could not start Ollama. Make sure Docker + docker-compose.yml are present.");
     process.exit(1);
   }
