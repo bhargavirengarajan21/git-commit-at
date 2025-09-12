@@ -9,16 +9,13 @@ import { diffParser } from './diff-parser.js';
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434/api/generate";
 
 const ensureOllama = () =>{
+  console.log("🔍 Checking Ollama status...");
+  console.log("🚀 Starting Ollama via docker compose...");
   try {
-    execSync("curl -s http://localhost:11434/api/version", { stdio: "ignore" });
-  } catch {
-    console.log("🚀 Starting Ollama via docker compose...");
-    try {
-      execSync("docker compose up -d ollama", { stdio: "inherit" });
-    } catch (err) {
-      console.error("❌ Could not start Ollama. Make sure Docker + docker-compose.yml are present.");
-      process.exit(1);
-    }
+    execSync("docker compose up -d ollama", { stdio: "inherit" });
+  } catch (err) {
+    console.error("❌ Could not start Ollama. Make sure Docker + docker-compose.yml are present.");
+    process.exit(1);
   }
 };
 
@@ -222,7 +219,7 @@ const runCommit = (msg) => {
 
 const main = async () => {
   try {
-    ensureOllama();
+    await ensureOllama();
     const diff = getGitDiff();
 
     // Pull model to ensure it’s available
