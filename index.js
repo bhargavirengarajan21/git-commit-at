@@ -5,26 +5,8 @@ import inquirer from 'inquirer';
 import { execSync } from 'child_process';
 import { spec } from './conventional-comit.js';
 import { diffParser } from './diff-parser.js';
-import path from 'path';
-import { fileURLToPath } from 'url';
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434/api/generate";
-
-const ensureOllama = () =>{
-  console.log("🔍 Checking Ollama status...");
-  console.log("🚀 Starting Ollama via docker compose...");
-  try {
-    const composeFile = path.resolve(__dirname, 'docker-compose.yml');
-    console.log(`Using compose file at: ${composeFile}`);
-    execSync(`docker compose -f ${composeFile} up -d ollama`, { stdio: "inherit" });
-  } catch (err) {
-    console.log(err);
-    console.error("❌ Could not start Ollama. Make sure Docker + docker-compose.yml are present.");
-    process.exit(1);
-  }
-};
-
+const OLLAMA_URL = (process.env.OLLAMA_URL || "http://localhost:11434/");
 
 const getGitDiff = () => {
   try {
@@ -45,7 +27,7 @@ const getGitDiff = () => {
 
 const getSuggestionsFromOllama = async (diff, ticket_number) => {
   const instruction = spec();
-
+  console.log("🤖 Sending request to Ollama...");
   const prompt = ticket_number? `TASK:
 1. Read this instruction: ${instruction}
 2. Analyze the following Git diff:
@@ -197,6 +179,7 @@ RULES:
 };
 
 const askCommitMessage = async (suggestions) => {
+  console.log("\nSelect a commit message:\n");
   const { message } = await inquirer.prompt([
     {
       type: 'list',
@@ -216,6 +199,7 @@ const askTicketNumber = async () => {
       message: 'Enter ticket number (or leave blank):'
     }
   ]);
+  console.log("Using ticket number:", ticket || "(none)");
   return ticket.trim();
 };
 
@@ -225,16 +209,20 @@ const runCommit = (msg) => {
 
 const main = async () => {
   try {
-    await ensureOllama();
     const diff = getGitDiff();
-
     // Pull model to ensure it’s available
-    await fetch("http://localhost:11434/api/pull", {
+    console.log("ollama url",OLLAMA_URL);
+
+    fetch(`${OLLAMA_URL}/api/pull`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'qwen2.5-coder:1.5b' })
+    }).then(() => {
+      console.log("✅ Model pull triggered (running in background).");
+    }).catch(err => {
+      console.warn("⚠️ Model pull failed:", err.message);
     });
-
+    
     const ticket_number = await askTicketNumber();
     const suggestions = await getSuggestionsFromOllama(diff, ticket_number);
 

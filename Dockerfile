@@ -1,12 +1,17 @@
-FROM node:20-alpine
+FROM node:20
 
+# Create app directory
 WORKDIR /app
+
+# Copy package files
 COPY package*.json ./
+
+# Install dependencies
 RUN npm install
 
-# Add this line to install git
-RUN apk add --no-cache git
-
+# Copy source
 COPY . .
 
+# Default command (when service starts)
 CMD ["node", "index.js"]
+

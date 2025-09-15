@@ -16,7 +16,7 @@
     "start": "node index.js"
   },
   "bin": {
-    "git-commit-at": "./index.js"
+    "git-commit-at": "./wrapper.js"
   },
   "keywords": [
     "git",

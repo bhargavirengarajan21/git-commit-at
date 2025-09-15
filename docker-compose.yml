@@ -6,7 +6,7 @@ services:
     volumes:
       - ollama-data:/root/.ollama
 
-  commit-gpt:
+  commit-at:
     build: .
     volumes:
       - .:/repo
@@ -16,7 +16,7 @@ services:
     stdin_open: true
     tty: true
     environment:
-      - OLLAMA_URL=http://ollama:11434/api/generate
+      - OLLAMA_URL=http://ollama:11434/
 
 volumes:
   ollama-data:
