@@ -147,7 +147,7 @@ RULES:
 - Do not use bullets, numbering, or extra commentary.
 - Do not output markdown or code fences.
 `;
-  const res = await fetch(OLLAMA_URL, {
+  const res = await fetch(`${OLLAMA_URL}api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -213,7 +213,7 @@ const main = async () => {
     // Pull model to ensure it’s available
     console.log("ollama url",OLLAMA_URL);
 
-    fetch(`${OLLAMA_URL}/api/pull`, {
+    fetch(`${OLLAMA_URL}api/pull`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'qwen2.5-coder:1.5b' })
