@@ -27,20 +27,19 @@ const getGitDiff = () => {
 
 const getSuggestionsFromOllama = async (diff, ticket_number) => {
   const instruction = spec();
-  console.log("🤖 Sending request to Ollama...");
   const prompt = ticket_number? `TASK:
 1. Read this instruction: ${instruction}
-2. Analyze the following Git diff:
+2. Understand the following Git diff (straight forward and no assumptions):
 ${diff}
 
 GOAL:
-- Generate EXACTLY 3 commit messages.
-- Each commit message must summarize ALL staged changes together in ONE line.
-- Always include added, deleted, and modified files if they exist.
-- Keep each message under 30 words.
+- Generate EXACTLY 3 commit messages that summarize ${diff}.
+- short description or straight forward description of ${diff}.
+- Include all file operations: added files, deleted files, and modified files ${diff}.
+- Keep each message under 30 words and make them descriptive but concise ${diff} avoid extra words.
 
 FORMAT:
-[Action #${ticket_number}]: <short description>
+<type> #${ticket_number}: <straight forward description of ${diff} only>
 
 EXAMPLES:
 
@@ -84,22 +83,25 @@ chore #789: add new routes and change server configuration
 ---
 
 RULES:
-- Exactly 3 lines, no more, no less.
+- Output exactly 3 lines, no more, no less.
 - Do not use bullets, numbering, or extra commentary.
 - Do not output markdown or code fences.
+- Use conventional commit types: feat, fix, chore, refactor, style, docs, test, etc.
+- Each line should be a complete commit message following the format above.
+- Focus on what changed, not how it changed.
 `: `TASK:
 1. Read this instruction: ${instruction}
 2. Analyze the following Git diff:
 ${diff}
 
 GOAL:
-- Generate EXACTLY 3 commit messages.
-- Each commit message must summarize ALL staged changes together in ONE line.
-- Always include added, deleted, and modified files if they exist.
-- Keep each message under 30 words.
+- Generate EXACTLY 3 commit messages that summarize ALL ${diff}.
+- Each message must be a single line describing ${diff}.
+- Include all file operations: added files, deleted files, and modified files if its in ${diff}.
+- Keep each message under 30 words and make them descriptive but concise about the ${diff}.
 
 FORMAT:
-[Action]: <short description>
+<type>: <description>
 
 EXAMPLES:
 
@@ -110,9 +112,9 @@ diff --git a/app.js b/app.js
 new file mode 100644 app.test.js
 
 Expected commit messages:
-feat #123: add app.test.js and update app.js logging
-refactor #123: introduce test file and adjust console output in app.js
-chore #123: add test and tweak log message in app.js
+feat: add app.test.js and update app.js logging
+refactor: introduce test file and adjust console output in app.js
+chore: add test and tweak log message in app.js
 
 ---
 
@@ -123,9 +125,9 @@ diff --git a/styles.css b/styles.css
 deleted file mode 100644 old.css
 
 Expected commit messages:
-style #456: change body color to blue and remove old.css
-refactor #456: update CSS theme and delete obsolete stylesheet
-chore #456: adjust styles and clean up unused file
+style: change body color to blue and remove old.css
+refactor: update CSS theme and delete obsolete stylesheet
+chore: adjust styles and clean up unused file
 
 ---
 
@@ -136,16 +138,19 @@ diff --git a/server.js b/server.js
 new file mode 100644 routes.js
 
 Expected commit messages:
-feat #789: add routes.js and update server to listen on port 3000
-refactor #789: introduce routes file and adjust server port
-chore #789: add new routes and change server configuration
+feat: add routes.js and update server to listen on port 3000
+refactor: introduce routes file and adjust server port
+chore: add new routes and change server configuration
 
 ---
 
 RULES:
-- Exactly 3 lines, no more, no less.
+- Output exactly 3 lines, no more, no less.
 - Do not use bullets, numbering, or extra commentary.
 - Do not output markdown or code fences.
+- Use conventional commit types: feat, fix, chore, refactor, style, docs, test, etc.
+- Each line should be a complete commit message following the format above.
+- Focus on what changed, not how it changed.
 `;
   const res = await fetch(`${OLLAMA_URL}api/generate`, {
     method: 'POST',
@@ -168,7 +173,6 @@ RULES:
     throw new Error("❌ No 'response' field received from Ollama.");
   }
 
-  console.log("🤖 Ollama raw response:", data.response);
 
   // sanitize lines
   return data.response
@@ -211,7 +215,6 @@ const main = async () => {
   try {
     const diff = getGitDiff();
     // Pull model to ensure it’s available
-    console.log("ollama url",OLLAMA_URL);
 
     fetch(`${OLLAMA_URL}api/pull`, {
       method: 'POST',
