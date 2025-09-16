@@ -15,7 +15,7 @@ AI-powered git commit message suggester using Ollama + tinyllama.
 - [Node.js](https://nodejs.org/) (v18+ recommended)
 - [Ollama](https://ollama.com/) (runs automatically via Docker Compose)
 
-## Installation
+## Contribution
 
 1. Clone this repository:
 
@@ -36,27 +36,25 @@ AI-powered git commit message suggester using Ollama + tinyllama.
    docker compose build
    ```
 
+4. You can Raise Pr and Make changes
+
 ## Usage
 
-1. Stage your changes:
+1. Run the tool, Just one Step of installing the tool:
+
+   ```sh
+   npm i -g git-commit-at
+   ```
+2. Stage your changes:
 
    ```sh
    git add .
    ```
 
-2. Run the tool:
-
-   ```sh
-   npx git-commit-gpt
-   ```
-
-   Or, if installed globally:
-
-   ```sh
-   git-commit-gpt
-   ```
-
-3. Follow the prompts to select a commit message.
+3. To run the commmit 
+```sh
+git commit-at
+```
 
 ## How it works
 
