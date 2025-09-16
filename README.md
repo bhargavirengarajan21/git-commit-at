@@ -21,7 +21,7 @@ AI-powered git commit message suggester using Ollama + tinyllama.
 
    ```sh
    git clone <repo-url>
-   cd git-commit-gpt
+   cd git-commit-at
    ```
 
 2. Install dependencies:
