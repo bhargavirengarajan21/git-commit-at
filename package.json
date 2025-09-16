@@ -1,6 +1,6 @@
 {
   "name": "git-commit-at",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "AI-powered git commit message suggester using Ollama + tinyllama",
   "main": "index.js",
   "type": "module",
