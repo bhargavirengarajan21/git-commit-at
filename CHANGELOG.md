@@ -2,7 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.1.1] - 2026-06-15
+
+### Added
+- Bundled Gradio web UI (`gradio/`) directly into the npm package — no separate repo needed
+- `auth_service.py` — Redis-based user auth with session storage (signals CLI when login is complete)
+- `generate_graph.py` — renders git branch DAG as PNG and stores in Redis after each commit
+- `Pillow` added to Python dependencies for branch graph image support
+
+### Changed
+- Consolidated `git-commit-ai` UI into `git-commit-at/gradio/` — single repo, single package
+- Removed obsolete `scripts/copy_ai.js` and `scripts/postinstall.js`
 
 ### Fixed
 - Mount user's current working directory (`process.cwd()`) into the container at `/git-repo` so `git diff --cached` runs against the correct repo, not the package source
