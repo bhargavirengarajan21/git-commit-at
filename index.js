@@ -2,245 +2,228 @@
 
 import fetch from 'node-fetch';
 import inquirer from 'inquirer';
-import { execSync } from 'child_process';
-import { spec } from './conventional-comit.js';
+import chalk from 'chalk';
+import boxen from 'boxen';
 import { diffParser } from './diff-parser.js';
+import { execSync as exec } from 'child_process';
+import { configExists, readConfig, writeConfig, logCommit } from './config.js';
 
-const OLLAMA_URL = (process.env.OLLAMA_URL || "http://localhost:11434/");
+const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434/";
+const MODEL = 'qwen2.5-coder:1.5b';
+
+const banner = (title, subtitle = '') =>
+  console.log(boxen(
+    chalk.bold.cyan(title) + (subtitle ? '\n' + chalk.dim(subtitle) : ''),
+    { padding: { top: 0, bottom: 0, left: 1, right: 1 }, borderColor: 'cyan', borderStyle: 'round' }
+  ));
+
+const infoBox = (title, lines, color = 'yellow') =>
+  console.log(boxen(
+    chalk.bold[color](title + '\n') +
+    lines.map(l => chalk.dim('  • ') + l).join('\n'),
+    { padding: 1, borderColor: color, borderStyle: 'round' }
+  ));
 
 const getGitDiff = () => {
   try {
-    const diffArray = diffParser(); // returns array
-    if (!Array.isArray(diffArray) || diffArray.length === 0) {
-      console.log("✅ No staged changes. Use `git add` before running.");
+    const { structured, rawDiff } = diffParser();
+    if (!Array.isArray(structured) || structured.length === 0) {
+      console.log(chalk.yellow('No staged changes. Use `git add` before running.'));
       process.exit(0);
     }
-
-    // turn into a readable string for prompt
-    const diff = diffArray.join('\n');
-    return diff;
+    return { structured, rawDiff };
   } catch (error) {
-    console.log("❌ Failed to read git diff.", error.message);
+    console.log(chalk.red('Failed to read git diff: ' + error.message));
     process.exit(1);
   }
 };
 
-const getSuggestionsFromOllama = async (diff, ticket_number) => {
-  const instruction = spec();
-  const prompt = ticket_number? `TASK:
-1. Read this instruction: ${instruction}
-2. Understand the following Git diff (straight forward and no assumptions):
-${diff}
+const applyFormat = (format, commitMessage, ticket) => {
+  return format
+    .replace('<commit_message>', commitMessage)
+    .replace('<ticket>', ticket || '')
+    .trim();
+};
 
-GOAL:
-- Generate EXACTLY 3 commit messages that summarize ${diff}.
-- short description or straight forward description of ${diff}.
-- Include all file operations: added files, deleted files, and modified files ${diff}.
-- Keep each message under 30 words and make them descriptive but concise ${diff} avoid extra words.
+const getSuggestionsFromOllama = async (diff, config) => {
+  const prompt = `You are a commit message generator. Study the git diff carefully and write 3 specific commit messages.
 
-FORMAT:
-<type> #${ticket_number}: <straight forward description of ${diff} only>
+Each message must answer: what file/code changed, and what does that change achieve?
 
-EXAMPLES:
-
-Input diff:
-diff --git a/app.js b/app.js
-+ console.log("Hello");
-- console.log("World");
-new file mode 100644 app.test.js
-
-Expected commit messages:
-feat #123: add app.test.js and update app.js logging
-refactor #123: introduce test file and adjust console output in app.js
-chore #123: add test and tweak log message in app.js
-
----
-
-Input diff:
-diff --git a/styles.css b/styles.css
-- body { color: red; }
-+ body { color: blue; }
-deleted file mode 100644 old.css
-
-Expected commit messages:
-style #456: change body color to blue and remove old.css
-refactor #456: update CSS theme and delete obsolete stylesheet
-chore #456: adjust styles and clean up unused file
-
----
-
-Input diff:
-diff --git a/server.js b/server.js
-+ app.listen(3000);
-- app.listen(4000);
-new file mode 100644 routes.js
-
-Expected commit messages:
-feat #789: add routes.js and update server to listen on port 3000
-refactor #789: introduce routes file and adjust server port
-chore #789: add new routes and change server configuration
-
----
+FORMAT: <type>: <description>
+TYPES: feat, fix, chore, refactor, style, docs, test
 
 RULES:
-- Output exactly 3 lines, no more, no less.
-- Do not use bullets, numbering, or extra commentary.
-- Do not output markdown or code fences.
-- Use conventional commit types: feat, fix, chore, refactor, style, docs, test, etc.
-- Each line should be a complete commit message following the format above.
-- Focus on what changed, not how it changed.
-`: `TASK:
-1. Read this instruction: ${instruction}
-2. Analyze the following Git diff:
+- Be specific to THIS diff — no generic phrases.
+- Mention the file or function name if relevant.
+- Describe the purpose, not just the mechanics.
+- One line each, under 15 words.
+- No bullets, no markdown, no extra commentary.
+
+GIT DIFF:
 ${diff}
 
-GOAL:
-- Generate EXACTLY 3 commit messages that summarize ALL ${diff}.
-- Each message must be a single line describing ${diff}.
-- Include all file operations: added files, deleted files, and modified files if its in ${diff}.
-- Keep each message under 30 words and make them descriptive but concise about the ${diff}.
-
-FORMAT:
-<type>: <description>
-
-EXAMPLES:
-
-Input diff:
-diff --git a/app.js b/app.js
-+ console.log("Hello");
-- console.log("World");
-new file mode 100644 app.test.js
-
-Expected commit messages:
-feat: add app.test.js and update app.js logging
-refactor: introduce test file and adjust console output in app.js
-chore: add test and tweak log message in app.js
-
----
-
-Input diff:
-diff --git a/styles.css b/styles.css
-- body { color: red; }
-+ body { color: blue; }
-deleted file mode 100644 old.css
-
-Expected commit messages:
-style: change body color to blue and remove old.css
-refactor: update CSS theme and delete obsolete stylesheet
-chore: adjust styles and clean up unused file
-
----
-
-Input diff:
-diff --git a/server.js b/server.js
-+ app.listen(3000);
-- app.listen(4000);
-new file mode 100644 routes.js
-
-Expected commit messages:
-feat: add routes.js and update server to listen on port 3000
-refactor: introduce routes file and adjust server port
-chore: add new routes and change server configuration
-
----
-
-RULES:
-- Output exactly 3 lines, no more, no less.
-- Do not use bullets, numbering, or extra commentary.
-- Do not output markdown or code fences.
-- Use conventional commit types: feat, fix, chore, refactor, style, docs, test, etc.
-- Each line should be a complete commit message following the format above.
-- Focus on what changed, not how it changed.
+OUTPUT (3 lines, numbered):
+1.
+2.
+3.
 `;
+
   const res = await fetch(`${OLLAMA_URL}api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'qwen2.5-coder:1.5b',
+      model: MODEL,
       prompt,
-      stream: false
+      stream: true,
+      options: { temperature: 0.2, top_p: 0.9, top_k: 20 }
     }),
-    timeout: 10000
+    timeout: 30000
   });
 
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`❌ Ollama responded with ${res.status}: ${errorText}`);
+    throw new Error(`Ollama responded with ${res.status}: ${errorText}`);
   }
 
-  const data = await res.json();
-  if (!data.response) {
-    throw new Error("❌ No 'response' field received from Ollama.");
+  process.stdout.write(chalk.dim('\n  Thinking: '));
+  let fullResponse = '';
+  for await (const chunk of res.body) {
+    const lines = chunk.toString().split('\n').filter(Boolean);
+    for (const line of lines) {
+      try {
+        const data = JSON.parse(line);
+        if (data.response) {
+          process.stdout.write(chalk.cyan(data.response));
+          fullResponse += data.response;
+        }
+      } catch {}
+    }
   }
+  process.stdout.write('\n\n');
 
+  if (!fullResponse) throw new Error('No response received from Ollama.');
 
-  // sanitize lines
-  return data.response
+  const raw = fullResponse
     .split('\n')
-    .map(s => s.replace(/^[-*\d.]+\s*/, '').replace(/[`]/g, '').trim()) // strip list markers/backticks
-    .filter(Boolean)
+    .map(s => s.replace(/^[\d]+[.)]\s*/, '').replace(/[`]/g, '').trim())
+    .filter(s => s.length > 4 && s.length < 120)
     .slice(0, 3);
-};
 
-const askCommitMessage = async (suggestions) => {
-  console.log("\nSelect a commit message:\n");
-  const { message } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'message',
-      message: 'Select a commit message:',
-      choices: suggestions
-    }
-  ]);
-  return message;
-};
+  if (raw.length === 0) throw new Error('Model returned no valid commit messages. Try again.');
 
-const askTicketNumber = async () => {
-  const { ticket } = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'ticket',
-      message: 'Enter ticket number (or leave blank):'
-    }
-  ]);
-  console.log("Using ticket number:", ticket || "(none)");
-  return ticket.trim();
+  const result = raw.map(line => applyFormat(config.format, line, config.ticket));
+  while (result.length < 3) result.push(result[0]);
+  return result;
 };
 
 const runCommit = (msg) => {
-  execSync(`git commit -m "${msg.replace(/"/g, '\\"')}"`, { stdio: 'inherit' });
+  exec(`git commit -m "${msg.replace(/"/g, '\\"')}"`, { stdio: 'inherit', cwd: '/git-repo' });
+};
+
+const getSessionUser = () => {
+  const name = process.env.SESSION_USERNAME;
+  const email = process.env.SESSION_EMAIL;
+
+  if (name && email) {
+    const config = { name, email, format: '<commit_message>' };
+    if (!configExists()) {
+      writeConfig(config);
+    }
+    return config;
+  }
+
+  if (configExists()) return readConfig();
+
+  throw new Error('Not authenticated. Please login at http://localhost:7860');
 };
 
 const main = async () => {
   try {
-    const diff = getGitDiff();
-    // Pull model to ensure it’s available
+    const config = getSessionUser();
+    banner('git-commit-at', 'Welcome back, ' + config.name + '!');
+
+    console.log('\n' + chalk.cyan('◆') + chalk.bold(' Analyzing staged changes...\n'));
+
+    const { structured, rawDiff } = getGitDiff();
+
+    infoBox('Staged changes', structured, 'yellow');
 
     fetch(`${OLLAMA_URL}api/pull`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'qwen2.5-coder:1.5b' })
-    }).then(() => {
-      console.log("✅ Model pull triggered (running in background).");
-    }).catch(err => {
-      console.warn("⚠️ Model pull failed:", err.message);
+      body: JSON.stringify({ name: MODEL })
+    }).catch(() => {});
+
+    const { ticket } = await inquirer.prompt([{
+      type: 'input',
+      name: 'ticket',
+      message: chalk.cyan('Ticket number') + chalk.dim(' (or leave blank):')
+    }]);
+
+    console.log('\n' + chalk.dim('  Variables: ') + chalk.cyan('<commit_message>') + chalk.dim('  ') + chalk.cyan('<ticket>'));
+    console.log(chalk.dim('  Example:   ') + chalk.white('AB#<ticket> <commit_message>') + '\n');
+
+    const { format } = await inquirer.prompt([{
+      type: 'input',
+      name: 'format',
+      message: chalk.cyan('Commit format') + chalk.dim(' (or leave blank to use saved):')
+    }]);
+
+    const resolvedFormat = format.trim() || config.format;
+
+    console.log('\n' + chalk.cyan('◆') + chalk.bold(' Generating commit suggestions...'));
+
+    const suggestions = await getSuggestionsFromOllama(rawDiff, {
+      ...config,
+      format: resolvedFormat,
+      ticket: ticket.trim()
     });
-    
-    const ticket_number = await askTicketNumber();
-    const suggestions = await getSuggestionsFromOllama(diff, ticket_number);
 
-    console.log("\n✅ Suggestions:\n", suggestions.join('\n'));
+    infoBox('Suggestions', suggestions, 'green');
 
-    const message = await askCommitMessage(suggestions);
-    console.log(`\n📝 Commit preview:\n${message}\n`);
+    const { message } = await inquirer.prompt([{
+      type: 'list',
+      name: 'message',
+      message: chalk.cyan('Select a commit message:'),
+      choices: suggestions
+    }]);
 
-    const { confirm } = await inquirer.prompt([
-      { type: 'confirm', name: 'confirm', message: 'Use this commit?' }
-    ]);
+    console.log('\n' + boxen(
+      chalk.bold('Commit preview\n\n') + chalk.green(message),
+      { padding: 1, borderColor: 'green', borderStyle: 'round' }
+    ) + '\n');
 
-    if (confirm) runCommit(message);
+    const { confirm } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'confirm',
+      message: chalk.cyan('Use this commit?')
+    }]);
+
+    if (!confirm) {
+      console.log(chalk.yellow('\nCommit cancelled.\n'));
+      process.exit(0);
+    }
+
+    runCommit(message);
+
+    logCommit({
+      name: config.name,
+      email: config.email,
+      message,
+      ticket: ticket.trim() || null,
+      format: resolvedFormat,
+      repo: process.env.GIT_REPO_PATH || '/git-repo'
+    });
+
+    console.log('\n' + boxen(
+      chalk.green('Committed: ') + chalk.bold(message),
+      { padding: { top: 0, bottom: 0, left: 1, right: 1 }, borderColor: 'green', borderStyle: 'round' }
+    ) + '\n');
+
   } catch (error) {
-    console.log("⚠️ Error:", error.message);
+    console.log(chalk.red('\nError: ' + error.message + '\n'));
+    process.exit(1);
   }
 };
 

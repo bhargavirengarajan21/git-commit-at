@@ -12,11 +12,22 @@
   "bugs": {
     "url": "https://github.com/bhargavirengarajan21/git-commit-at/issues"
   },
+  "files": [
+    "index.js",
+    "wrapper.js",
+    "diff-parser.js",
+    "config.js",
+    "conventional-comit.js",
+    "Dockerfile",
+    "docker-compose.yml",
+    "gradio/"
+  ],
   "scripts": {
     "start": "node index.js"
   },
   "bin": {
-    "git-commit-at": "./wrapper.js"
+    "git-commit-at": "./wrapper.js",
+    "commit-at": "./wrapper.js"
   },
   "keywords": [
     "git",
@@ -29,8 +40,11 @@
   "author": "Bhargavi Rengarajan",
   "license": "MIT",
   "dependencies": {
+    "boxen": "^8.0.1",
+    "chalk": "^5.6.2",
     "diffparser": "^2.0.1",
     "inquirer": "^9.0.0",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "redis": "^4.7.0"
   }
 }

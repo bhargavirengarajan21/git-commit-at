@@ -12,6 +12,10 @@ RUN npm install
 # Copy source
 COPY . .
 
-# Default command (when service starts)
-CMD ["node", "index.js"]
+# Copy entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Set entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
 
